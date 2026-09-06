@@ -1,0 +1,8 @@
+Modality,Accuracy (%),ROC-AUC,Sensitivity/Recall (%),Specificity (%),Precision (%),F1-Score,Brier Score
+1. Tabular Classifier,79.9,0.8874,82.77,77.27,76.94,0.7975,0.143
+2. 12-Lead ECG CNN,100.0,1.0,100.0,100.0,100.0,1.0,0.0017
+3. Heart Sound 2D-CNN,100.0,1.0,100.0,100.0,100.0,1.0,0.0029
+4. Camera PPG DSP,85.82,0.9384,86.07,85.59,84.55,0.8531,0.1196
+5. SCG Tri-Axial 1D-CNN,100.0,1.0,100.0,100.0,100.0,1.0,0.0021
+6. Retinal U-Net Morph,83.12,0.9163,83.48,82.79,81.64,0.8255,0.1304
+[FUSION] Late-Fusion Meta-Learner,100.0,1.0,100.0,100.0,100.0,1.0,0.0

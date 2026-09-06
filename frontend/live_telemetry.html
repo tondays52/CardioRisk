@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioRisk AI | Real-Time Continuous Telemetry & Hardware Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #080C16;
+            --bg-surface: #0E1626;
+            --bg-card: rgba(15, 23, 42, 0.8);
+            --border-card: rgba(51, 65, 85, 0.5);
+            --cyan: #06B6D4;
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --emerald: #10B981;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --rose: #F43F5E;
+            --amber: #F59E0B;
+            --purple: #A78BFA;
+            --text-main: #F8FAFC;
+            --text-sub: #94A3B8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background: radial-gradient(circle at 15% 15%, #0f1c35 0%, #080c16 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 1.5rem 2rem 3rem 2rem;
+        }
+
+        .container { max-width: 1280px; margin: 0 auto; }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-card);
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .header-title-group { display: flex; align-items: center; gap: 14px; }
+        .header-icon {
+            width: 46px; height: 46px; border-radius: 12px;
+            background: linear-gradient(135deg, #0EA5E9, #E11D48);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px rgba(14, 165, 233, 0.35);
+        }
+        .header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; }
+        .header p { color: var(--text-sub); font-size: 0.85rem; margin-top: 2px; }
+        
+        .badge-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 0.45rem 1rem; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;
+            backdrop-filter: blur(8px);
+        }
+        .badge-sim { background: rgba(167, 139, 250, 0.15); color: #C4B5FD; border: 1px solid rgba(167, 139, 250, 0.4); }
+        .badge-hw { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.4); box-shadow: 0 0 12px rgba(16, 185, 129, 0.3); }
+
+        /* Mode Selector Tabs */
+        .source-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        .source-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 1.25rem;
+            background: rgba(10, 15, 29, 0.7);
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(51, 65, 85, 0.4);
+        }
+        .source-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        .source-tab:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.05); }
+        .source-tab.active {
+            background: linear-gradient(135deg, #0284C7, #06B6D4);
+            color: white;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+        }
+
+        /* Source Control Bars */
+        .source-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(51, 65, 85, 0.3);
+        }
+        .control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .control-label { font-size: 0.82rem; font-weight: 600; color: var(--text-sub); text-transform: uppercase; }
+
+        select, input[type="number"], input[type="range"] {
+            background: #0F172A;
+            border: 1px solid var(--border-card);
+            color: var(--text-main);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+        }
+        select:focus, input:focus { border-color: var(--cyan); }
+
+        .btn {
+            background: linear-gradient(135deg, #0284C7, #06B6D4);
+            color: white;
+            border: none;
+            padding: 0.55rem 1.15rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3); }
+        .btn-emerald { background: linear-gradient(135deg, #059669, #10B981); }
+        .btn-emerald:hover { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .btn-danger { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #FDA4AF; }
+        .btn-danger:hover { background: rgba(244, 63, 94, 0.25); transform: translateY(-1px); }
+        .btn-secondary { background: rgba(51, 65, 85, 0.4); color: var(--text-main); border: 1px solid var(--border-card); }
+        .btn-secondary:hover { background: rgba(51, 65, 85, 0.7); }
+
+        /* Status Banner */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(12px);
+        }
+        .live-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: var(--emerald);
+            display: inline-block; box-shadow: 0 0 10px var(--emerald); animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.15); }
+            100% { opacity: 0.4; transform: scale(0.9); }
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 1.25rem;
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .kpi-card:hover { border-color: rgba(6, 182, 212, 0.4); }
+        .kpi-title { font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+        .kpi-val { font-size: 2.1rem; font-weight: 800; margin: 0.35rem 0; color: var(--text-main); }
+        .kpi-unit { font-size: 0.8rem; color: var(--text-sub); }
+
+        /* Charts & Gauge Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .chart-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            backdrop-filter: blur(12px);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.85rem;
+        }
+        .chart-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .chart-legend { display: flex; gap: 14px; font-size: 0.78rem; font-weight: 600; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        canvas { width: 100%; height: 230px; background: #070B14; border-radius: 10px; border: 1px solid rgba(51, 65, 85, 0.3); }
+
+        /* Terminal Console */
+        .console-box {
+            background: #070B14;
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            margin-top: 1rem;
+        }
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .console-log {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #38BDF8;
+            height: 90px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid rgba(51, 65, 85, 0.4);
+            line-height: 1.45;
+        }
+
+        /* Help Modal / Quick Guide */
+        .guide-box {
+            background: rgba(14, 165, 233, 0.06);
+            border: 1px solid rgba(14, 165, 233, 0.25);
+            border-radius: 12px;
+            padding: 0.9rem 1.25rem;
+            font-size: 0.82rem;
+            color: var(--text-sub);
+            margin-top: 1.25rem;
+            line-height: 1.5;
+        }
+        .guide-box strong { color: #38BDF8; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; color: #F8FAFC; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Main Header -->
+        <div class="header">
+            <div class="header-title-group">
+                <div class="header-icon">🫀</div>
+                <div>
+                    <h1>Live Continuous Biometric Telemetry & Hardware Hub</h1>
+                    <p>Dual-Mode Architecture: Synthetic Physiological Simulation • USB Serial & Bluetooth BLE Hardware Ingestion</p>
+                </div>
+            </div>
+            <div id="sourceBadge" class="badge-pill badge-sim">
+                <span class="live-dot" style="background:#A78BFA; box-shadow:0 0 8px #A78BFA;"></span>
+                <span id="sourceBadgeText">Synthetic Simulation Active</span>
+            </div>
+        </div>
+
+        <!-- Telemetry Data Source Switcher -->
+        <div class="source-panel">
+            <div class="source-tabs">
+                <button class="source-tab active" id="tabSim" onclick="selectSourceMode('sim')">
+                    <span>🎲</span> Synthetic Simulation (Demo)
+                </button>
+                <button class="source-tab" id="tabUsb" onclick="selectSourceMode('usb')">
+                    <span>🔌</span> USB / Serial Port (Arduino / ESP32)
+                </button>
+                <button class="source-tab" id="tabBle" onclick="selectSourceMode('ble')">
+                    <span>📡</span> Bluetooth BLE Heart Monitor
+                </button>
+            </div>
+
+            <!-- Controls: SIMULATION MODE -->
+            <div id="controlsSim" class="source-controls">
+                <div class="control-group">
+                    <span class="control-label">Target Pulse:</span>
+                    <input type="range" id="simHrSlider" min="50" max="140" value="72" oninput="updateSimParams()">
+                    <span id="simHrLabel" style="font-weight:700; color:var(--cyan); min-width:45px;">72 BPM</span>
+                </div>
+                <div class="control-group">
+                    <span class="control-label">Patient State:</span>
+                    <select id="simStateSelect" onchange="updateSimParams()">
+                        <option value="normal">Normal Resting (Low Risk)</option>
+                        <option value="stressed">Cardiovascular Stress / Arrhythmia (High Risk)</option>
+                        <option value="athletic">High HRV / Athletic (Optimal)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-secondary" onclick="injectArrhythmiaSpike()">⚡ Inject Arrhythmia Spike</button>
+                </div>
+            </div>
+
+            <!-- Controls: USB SERIAL HARDWARE MODE -->
+            <div id="controlsUsb" class="source-controls" style="display:none;">
+                <div class="control-group">
+                    <span class="control-label">Baud Rate:</span>
+                    <select id="baudRateSelect">
+                        <option value="9600">9600 bps</option>
+                        <option value="57600">57600 bps</option>
+                        <option value="115200" selected>115200 bps (Recommended)</option>
+                        <option value="230400">230400 bps</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-emerald" id="btnConnectUsb" onclick="connectUsbSerial()">
+                        🔌 Connect USB Device
+                    </button>
+                    <button class="btn btn-danger" id="btnDisconnectUsb" onclick="disconnectUsbSerial()" style="display:none;">
+                        Disconnect USB
+                    </button>
+                    <span id="usbStatusText" style="font-size:0.85rem; color:var(--text-sub); font-weight:600;">No device connected.</span>
+                </div>
+            </div>
+
+            <!-- Controls: BLUETOOTH BLE MODE -->
+            <div id="controlsBle" class="source-controls" style="display:none;">
+                <div class="control-group">
+                    <span class="control-label">Standard GATT Heart Rate Profile (0x180D)</span>
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-emerald" id="btnConnectBle" onclick="connectBluetoothBle()">
+                        📡 Pair Bluetooth Sensor
+                    </button>
+                    <button class="btn btn-danger" id="btnDisconnectBle" onclick="disconnectBle()" style="display:none;">
+                        Disconnect BLE
+                    </button>
+                    <span id="bleStatusText" style="font-size:0.85rem; color:var(--text-sub); font-weight:600;">No BLE sensor paired.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status & Telemetry Actions Bar -->
+        <div class="status-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="live-dot" id="liveDot"></span>
+                <span id="connStatus" style="font-weight: 700;">Connecting to WebSocket stream...</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" id="btnToggle" onclick="toggleStream()">⏸️ Pause Display</button>
+                <button class="btn btn-secondary" onclick="resetStream()">🔄 Clear Traces</button>
+                <button class="btn btn-secondary" onclick="toggleConsole()">📟 Toggle Raw Hardware Log</button>
+            </div>
+        </div>
+
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Continuous Pulse Rate</div>
+                <div class="kpi-val" id="valHR" style="color: var(--cyan);">72.0</div>
+                <div class="kpi-unit">BPM (<span id="sourceLabelHR">Optical Photoplethysmography</span>)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Autonomic HRV (SDNN)</div>
+                <div class="kpi-val" id="valSDNN" style="color: var(--emerald);">42.4</div>
+                <div class="kpi-unit">ms (Standard Deviation of N-N Intervals)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">SCG Chest Vibration</div>
+                <div class="kpi-val" id="valSCG" style="color: var(--purple);">0.18</div>
+                <div class="kpi-unit">g (Tri-Axial Micro-Acceleration)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Dynamic CVD Risk Barometer</div>
+                <div class="kpi-val" id="valRisk" style="color: var(--amber);">25.8%</div>
+                <div class="kpi-unit" id="valRiskCat">Normal Risk Stratum</div>
+            </div>
+        </div>
+
+        <!-- Waveform Oscilloscope & Dynamic Gauge -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span>📈</span> Real-Time Waveform Oscilloscope
+                    </div>
+                    <div class="chart-legend">
+                        <span><span class="legend-dot" style="background:#06B6D4;"></span> PPG Pulse Wave</span>
+                        <span><span class="legend-dot" style="background:#A78BFA;"></span> SCG Cardiac Vibration</span>
+                    </div>
+                </div>
+                <canvas id="waveformCanvas" width="760" height="230"></canvas>
+            </div>
+
+            <div class="chart-box" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                <div class="chart-title" style="margin-bottom:0.5rem;">🎯 Real-Time Risk Stratification</div>
+                <div style="padding: 1rem 0;">
+                    <div style="font-size: 3.8rem; font-weight: 800; letter-spacing:-0.03em;" id="gaugeVal">25.8%</div>
+                    <div style="font-weight: 700; color: var(--emerald); font-size: 1.1rem; margin-top: 0.3rem;" id="gaugeLabel">LOW / OPTIMAL RISK</div>
+                    <div style="color: var(--text-sub); font-size: 0.78rem; margin-top: 0.8rem;">Adaptive Late-Fusion Meta-Learner Output</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collapsible Raw Hardware Terminal Monitor -->
+        <div class="console-box" id="consoleBox" style="display:none;">
+            <div class="console-header">
+                <div style="font-weight:700; font-size:0.85rem; color:#F8FAFC;">📟 Raw Hardware Serial Stream Monitor</div>
+                <div style="font-size:0.75rem; color:var(--text-sub);">Packets Processed: <strong id="packetCount" style="color:#38BDF8;">0</strong></div>
+            </div>
+            <div class="console-log" id="consoleLog">
+                [SYSTEM READY] Listening for sensor telemetry packets...
+            </div>
+        </div>
+
+        <!-- Quick Hardware Connection Guide -->
+        <div class="guide-box">
+            💡 <strong>Hardware Integration Guide:</strong> When connecting an Arduino, ESP32, or sensor via USB, stream data via Serial at <code>115200 baud</code> using JSON: <code>{"hr": 74.5, "sdnn": 42.1, "scg": 0.18}</code> or CSV: <code>74.5, 42.1, 0.18</code>. The telemetry engine automatically calculates real-time cardiovascular risk and visualizes the incoming waveforms.
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let currentMode = 'sim'; // 'sim', 'usb', 'ble'
+        let ws = null;
+        let isPaused = false;
+        let ppgHistory = [];
+        let scgHistory = [];
+        const maxPoints = 80;
+        let totalPackets = 0;
+
+        // Hardware Serial & BLE handles
+        let serialPort = null;
+        let serialReader = null;
+        let bleDevice = null;
+        let bleCharacteristic = null;
+
+        // Simulation parameters
+        let simBaseHr = 72.0;
+        let simModifier = 0.0;
+
+        const canvas = document.getElementById('waveformCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Select Telemetry Source Mode
+        function selectSourceMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('controlsSim').style.display = (mode === 'sim') ? 'flex' : 'none';
+            document.getElementById('controlsUsb').style.display = (mode === 'usb') ? 'flex' : 'none';
+            document.getElementById('controlsBle').style.display = (mode === 'ble') ? 'flex' : 'none';
+
+            if (mode === 'sim') {
+                document.getElementById('tabSim').classList.add('active');
+                setSourceBadge("Synthetic Simulation Active", false);
+                document.getElementById('sourceLabelHR').textContent = "Physiological Simulation Engine";
+            } else if (mode === 'usb') {
+                document.getElementById('tabUsb').classList.add('active');
+                setSourceBadge(serialPort ? "USB Device Streaming" : "USB Port Mode Selected", !!serialPort);
+                document.getElementById('sourceLabelHR').textContent = "USB Serial Microcontroller";
+            } else if (mode === 'ble') {
+                document.getElementById('tabBle').classList.add('active');
+                setSourceBadge(bleDevice ? "BLE Sensor Streaming" : "Bluetooth BLE Mode Selected", !!bleDevice);
+                document.getElementById('sourceLabelHR').textContent = "Bluetooth Wireless Sensor";
+            }
+        }
+
+        function setSourceBadge(text, isHardware) {
+            const badge = document.getElementById('sourceBadge');
+            const badgeText = document.getElementById('sourceBadgeText');
+            badgeText.textContent = text;
+            if (isHardware) {
+                badge.className = 'badge-pill badge-hw';
+            } else {
+                badge.className = 'badge-pill badge-sim';
+            }
+        }
+
+        // ==================== WEBSOCKET TELEMETRY ====================
+        function connectWebSocket() {
+            const host = window.location.host || 'localhost:8000';
+            const wsUrl = `ws://${host}/ws/telemetry`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                ws.onopen = () => {
+                    document.getElementById('connStatus').textContent = '🟢 Connected & Streaming Telemetry Packets';
+                    document.getElementById('connStatus').style.color = '#34D399';
+                    document.getElementById('liveDot').style.background = '#10B981';
+                };
+                ws.onmessage = (event) => {
+                    if (isPaused) return;
+                    // If not running physical USB or BLE locally, consume server stream
+                    if (currentMode === 'sim' || !serialPort && !bleDevice) {
+                        const data = JSON.parse(event.data);
+                        processIncomingData(data);
+                    }
+                };
+                ws.onclose = () => {
+                    document.getElementById('connStatus').textContent = '🔴 Disconnected - Reconnecting in 3s...';
+                    document.getElementById('connStatus').style.color = '#F87171';
+                    document.getElementById('liveDot').style.background = '#EF4444';
+                    setTimeout(connectWebSocket, 3000);
+                };
+                ws.onerror = () => { ws.close(); };
+            } catch (e) {
+                console.error("WS error:", e);
+            }
+        }
+
+        // Process incoming telemetry packet
+        function processIncomingData(data) {
+            totalPackets++;
+            document.getElementById('packetCount').textContent = totalPackets;
+
+            const hr = parseFloat(data.heart_rate_bpm || 72.0);
+            const sdnn = parseFloat(data.sdnn_ms || 42.0);
+            const scg = parseFloat(data.scg_vibration_g || 0.15);
+            
+            // Calculate dynamic risk
+            let risk = data.live_fused_risk_score;
+            if (risk === undefined) {
+                risk = Math.max(5.0, Math.min(95.0, 24.5 + (hr - 70) * 0.4 + (50 - sdnn) * 0.3));
+            }
+
+            document.getElementById('valHR').textContent = hr.toFixed(1);
+            document.getElementById('valSDNN').textContent = sdnn.toFixed(1);
+            document.getElementById('valSCG').textContent = scg.toFixed(2);
+            document.getElementById('valRisk').textContent = risk.toFixed(1) + '%';
+            document.getElementById('gaugeVal').textContent = risk.toFixed(1) + '%';
+            
+            let rColor = '#10B981';
+            let rCat = 'LOW / OPTIMAL RISK';
+            let stratum = 'Normal Risk Stratum';
+            if (risk >= 60.0) {
+                rColor = '#EF4444';
+                rCat = 'HIGH CARDIOVASCULAR RISK';
+                stratum = 'High Threat Stratum';
+            } else if (risk >= 30.0) {
+                rColor = '#F59E0B';
+                rCat = 'MODERATE RISK STRATUM';
+                stratum = 'Elevated Risk Stratum';
+            }
+            document.getElementById('gaugeVal').style.color = rColor;
+            document.getElementById('gaugeLabel').textContent = rCat;
+            document.getElementById('gaugeLabel').style.color = rColor;
+            document.getElementById('valRiskCat').textContent = stratum;
+
+            // Push to waveform buffers
+            ppgHistory.push(hr);
+            scgHistory.push(scg);
+            if (ppgHistory.length > maxPoints) ppgHistory.shift();
+            if (scgHistory.length > maxPoints) scgHistory.shift();
+
+            drawOscilloscope();
+        }
+
+        // ==================== WEB SERIAL API (USB / COM PORT) ====================
+        async function connectUsbSerial() {
+            if (!("serial" in navigator)) {
+                alert("Web Serial API is not supported in this browser. Please use Google Chrome, Edge, or Opera.");
+                return;
+            }
+
+            const baudRate = parseInt(document.getElementById('baudRateSelect').value);
+            try {
+                serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: baudRate });
+                
+                document.getElementById('btnConnectUsb').style.display = 'none';
+                document.getElementById('btnDisconnectUsb').style.display = 'inline-flex';
+                document.getElementById('usbStatusText').innerHTML = '🟢 <span style="color:#34D399;">Connected to Serial Port</span>';
+                setSourceBadge("USB Hardware Live Stream", true);
+                logToConsole(`[USB SERIAL] Connected at ${baudRate} baud.`);
+
+                readSerialLoop();
+            } catch (err) {
+                console.error("USB connection failed:", err);
+                logToConsole(`[USB ERROR] ${err.message}`);
+                document.getElementById('usbStatusText').textContent = "Connection cancelled or failed.";
+            }
+        }
+
+        async function readSerialLoop() {
+            const textDecoder = new TextDecoderStream();
+            const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+            serialReader = textDecoder.readable.getReader();
+
+            let buffer = "";
+            try {
+                while (true) {
+                    const { value, done } = await serialReader.read();
+                    if (done) break;
+                    if (value) {
+                        buffer += value;
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop(); // keep remainder
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed.length > 0) {
+                                logToConsole(`[RAW USB] ${trimmed}`);
+                                parseHardwareLine(trimmed);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                logToConsole(`[USB READ ERROR] ${err.message}`);
+            }
+        }
+
+        async function disconnectUsbSerial() {
+            if (serialReader) {
+                await serialReader.cancel();
+            }
+            if (serialPort) {
+                await serialPort.close();
+                serialPort = null;
+            }
+            document.getElementById('btnConnectUsb').style.display = 'inline-flex';
+            document.getElementById('btnDisconnectUsb').style.display = 'none';
+            document.getElementById('usbStatusText').textContent = "Disconnected.";
+            setSourceBadge("USB Port Mode Selected", false);
+            logToConsole(`[USB SERIAL] Disconnected.`);
+        }
+
+        // ==================== WEB BLUETOOTH API (BLE) ====================
+        async function connectBluetoothBle() {
+            if (!("bluetooth" in navigator)) {
+                alert("Web Bluetooth API is not supported in this browser. Please use Google Chrome or Edge.");
+                return;
+            }
+
+            try {
+                logToConsole("[BLE] Requesting Bluetooth Device with Heart Rate Service...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['heart_rate'] }]
+                });
+
+                logToConsole(`[BLE] Connecting to GATT server for ${bleDevice.name || 'Sensor'}...`);
+                const server = await bleDevice.gatt.connect();
+                const service = await server.getPrimaryService('heart_rate');
+                bleCharacteristic = await service.getCharacteristic('heart_rate_measurement');
+                
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleBleHeartRate);
+
+                document.getElementById('btnConnectBle').style.display = 'none';
+                document.getElementById('btnDisconnectBle').style.display = 'inline-flex';
+                document.getElementById('bleStatusText').innerHTML = `🟢 <span style="color:#34D399;">Connected to ${bleDevice.name || 'BLE Sensor'}</span>`;
+                setSourceBadge("Bluetooth BLE Live Stream", true);
+                logToConsole(`[BLE] Live Heart Rate notifications active.`);
+            } catch (err) {
+                console.error("BLE connection error:", err);
+                logToConsole(`[BLE ERROR] ${err.message}`);
+                document.getElementById('bleStatusText').textContent = "BLE pairing cancelled.";
+            }
+        }
+
+        function handleBleHeartRate(event) {
+            const value = event.target.value;
+            const flags = value.getUint8(0);
+            const rate16Bits = flags & 0x1;
+            let heartRate = 0;
+            if (rate16Bits) {
+                heartRate = value.getUint16(1, /*littleEndian=*/true);
+            } else {
+                heartRate = value.getUint8(1);
+            }
+
+            logToConsole(`[BLE HR] ${heartRate} BPM received`);
+            const packet = {
+                heart_rate_bpm: heartRate,
+                sdnn_ms: 45.0,
+                scg_vibration_g: 0.16
+            };
+            processIncomingData(packet);
+        }
+
+        function disconnectBle() {
+            if (bleDevice && bleDevice.gatt.connected) {
+                bleDevice.gatt.disconnect();
+            }
+            bleDevice = null;
+            document.getElementById('btnConnectBle').style.display = 'inline-flex';
+            document.getElementById('btnDisconnectBle').style.display = 'none';
+            document.getElementById('bleStatusText').textContent = "Disconnected.";
+            setSourceBadge("Bluetooth BLE Mode Selected", false);
+            logToConsole("[BLE] Disconnected.");
+        }
+
+        // ==================== HARDWARE PACKET PARSER ====================
+        function parseHardwareLine(line) {
+            let hr = 72.0, sdnn = 42.0, scg = 0.15;
+            try {
+                if (line.startsWith("{") && line.endsWith("}")) {
+                    const json = JSON.parse(line);
+                    hr = parseFloat(json.hr || json.heart_rate_bpm || 72.0);
+                    sdnn = parseFloat(json.sdnn || json.sdnn_ms || 42.0);
+                    scg = parseFloat(json.scg || json.scg_vibration_g || 0.15);
+                } else if (line.includes(",")) {
+                    const parts = line.split(",").map(p => parseFloat(p.trim()));
+                    if (parts.length >= 1 && !isNaN(parts[0])) hr = parts[0];
+                    if (parts.length >= 2 && !isNaN(parts[1])) sdnn = parts[1];
+                    if (parts.length >= 3 && !isNaN(parts[2])) scg = parts[2];
+                } else {
+                    const single = parseFloat(line);
+                    if (!isNaN(single) && single > 20 && single < 250) {
+                        hr = single;
+                    }
+                }
+                processIncomingData({ heart_rate_bpm: hr, sdnn_ms: sdnn, scg_vibration_g: scg });
+            } catch (e) {
+                logToConsole(`[PARSE ERR] Unrecognized packet: ${line}`);
+            }
+        }
+
+        // ==================== OSCILLOSCOPE DRAWING ====================
+        function drawOscilloscope() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.25)';
+            ctx.lineWidth = 1;
+            for (let y = 0; y < canvas.height; y += 38) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw PPG Waveform (Cyan)
+            if (ppgHistory.length > 1) {
+                ctx.strokeStyle = '#06B6D4';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                const stepX = canvas.width / (maxPoints - 1);
+                for (let i = 0; i < ppgHistory.length; i++) {
+                    const normalizedY = 115 - (ppgHistory[i] - 70) * 8;
+                    const x = i * stepX;
+                    if (i === 0) ctx.moveTo(x, normalizedY);
+                    else ctx.lineTo(x, normalizedY);
+                }
+                ctx.stroke();
+            }
+
+            // Draw SCG Waveform (Purple)
+            if (scgHistory.length > 1) {
+                ctx.strokeStyle = '#A78BFA';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                const stepX = canvas.width / (maxPoints - 1);
+                for (let i = 0; i < scgHistory.length; i++) {
+                    const normalizedY = 175 - scgHistory[i] * 25;
+                    const x = i * stepX;
+                    if (i === 0) ctx.moveTo(x, normalizedY);
+                    else ctx.lineTo(x, normalizedY);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // ==================== SIMULATION UTILITIES ====================
+        function updateSimParams() {
+            simBaseHr = parseFloat(document.getElementById('simHrSlider').value);
+            document.getElementById('simHrLabel').textContent = `${simBaseHr} BPM`;
+        }
+
+        function injectArrhythmiaSpike() {
+            logToConsole("[SIM] Injected Arrhythmia & Tachycardia Spike (+35 BPM, elevated SCG vibration)");
+            processIncomingData({
+                heart_rate_bpm: 118.5,
+                sdnn_ms: 18.2,
+                scg_vibration_g: 0.48
+            });
+        }
+
+        function logToConsole(msg) {
+            const logBox = document.getElementById('consoleLog');
+            const time = new Date().toLocaleTimeString();
+            logBox.innerHTML = `<div><span style="color:#64748B;">[${time}]</span> ${msg}</div>` + logBox.innerHTML;
+        }
+
+        function toggleConsole() {
+            const box = document.getElementById('consoleBox');
+            box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+        }
+
+        function toggleStream() {
+            isPaused = !isPaused;
+            document.getElementById('btnToggle').textContent = isPaused ? '▶️ Resume Display' : '⏸️ Pause Display';
+        }
+
+        function resetStream() {
+            ppgHistory = [];
+            scgHistory = [];
+            totalPackets = 0;
+            document.getElementById('packetCount').textContent = '0';
+            drawOscilloscope();
+            logToConsole("[RESET] Cleared trace buffers.");
+        }
+
+        // Initialize WebSocket connection
+        connectWebSocket();
+    </script>
+</body>
+</html>

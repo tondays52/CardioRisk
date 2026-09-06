@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioRisk AI - Voice Input</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        body {
+            background: #0F172A;
+            color: #E2E8F0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #E11D48, #0EA5E9);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .instruction {
+            color: #94A3B8;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+        
+        .mic-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #E11D48, #BE123C);
+            color: white;
+            border: none;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 1rem 0;
+        }
+        
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(225, 29, 72, 0.4);
+        }
+        
+        .mic-button.listening {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #10B981, #059669);
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        .transcript {
+            background: #1E293B;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            min-height: 80px;
+            color: #E2E8F0;
+        }
+        
+        .parsed-data {
+            background: #1E293B;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        
+        .parsed-data h3 {
+            color: #10B981;
+            margin-bottom: 1rem;
+        }
+        
+        .parsed-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .parsed-label {
+            color: #94A3B8;
+        }
+        
+        .parsed-value {
+            color: #E2E8F0;
+            font-weight: 600;
+        }
+        
+        .status {
+            color: #94A3B8;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Voice Input</h1>
+        <p class="instruction">Speak naturally. Example: "I am 45 years old, my blood pressure is 145 over 92, I am a smoker"</p>
+        
+        <button class="mic-button" id="micBtn" onclick="toggleListening()">🎤</button>
+        
+        <div class="status" id="status">Click the microphone to start</div>
+        
+        <div class="transcript" id="transcript">Transcript will appear here...</div>
+        
+        <div class="parsed-data" id="parsedData" style="display:none;">
+            <h3>📋 Parsed Information</h3>
+            <div id="parsedItems"></div>
+            <button onclick="copyToClipboard()" style="padding:10px 20px;background:#0EA5E9;color:white;border:none;border-radius:8px;cursor:pointer;margin-top:1rem;">
+                📋 Copy to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+        
+        function toggleListening() {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+        
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                document.getElementById('status').textContent = 'Speech recognition not supported. Use Chrome.';
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('micBtn').classList.add('listening');
+                document.getElementById('micBtn').textContent = '🔴';
+                document.getElementById('status').textContent = 'Listening... Speak now';
+            };
+            
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = 0; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                const transcript = finalTranscript || interimTranscript;
+                document.getElementById('transcript').textContent = transcript;
+                
+                if (finalTranscript) {
+                    parseTranscript(finalTranscript);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                document.getElementById('status').textContent = 'Error: ' + event.error;
+                isListening = false;
+                document.getElementById('micBtn').classList.remove('listening');
+                document.getElementById('micBtn').textContent = '🎤';
+            };
+            
+            recognition.onend = function() {
+                isListening = false;
+                document.getElementById('micBtn').classList.remove('listening');
+                document.getElementById('micBtn').textContent = '🎤';
+                document.getElementById('status').textContent = 'Click microphone to speak again';
+            };
+            
+            recognition.start();
+        }
+        
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+        
+        function parseTranscript(transcript) {
+            const lower = transcript.toLowerCase();
+            const parsed = {};
+            
+            // === AGE ===
+            const ageMatch = lower.match(/(?:age\s*(?:is\s*)?|i am|i'm)\s*(\d{1,3})/);
+            if (ageMatch) parsed.age = parseInt(ageMatch[1]);
+            
+            // === BLOOD PRESSURE ===
+            const bpMatch = lower.match(/(?:blood pressure|bp)?\s*(?:is\s*)?(\d{2,3})\s*(?:over|by|slash|\/)\s*(\d{2,3})/);
+            if (bpMatch) {
+                parsed.systolic_bp = parseInt(bpMatch[1]);
+                parsed.diastolic_bp = parseInt(bpMatch[2]);
+            }
+            
+            // === GENDER ===
+            if (/\b(?:male|man|boy)\b/.test(lower)) {
+                parsed.gender = 2;
+            } else if (/\b(?:female|woman|girl)\b/.test(lower)) {
+                parsed.gender = 1;
+            }
+            
+            // === HEIGHT ===
+            const heightCm = lower.match(/(?:height\s*(?:is\s*)?|i am|i'm)\s*(\d{2,3})\s*(?:cm|centimeters?)?/);
+            if (heightCm) {
+                const val = parseInt(heightCm[1]);
+                if (val > 100 && val < 250) parsed.height_cm = val;
+            }
+            
+            // === WEIGHT ===
+            const weightKg = lower.match(/(?:weight\s*(?:is\s*)?|weigh\s*)\s*(\d{2,3})\s*(?:kg|kilograms?)?/);
+            if (weightKg) {
+                const val = parseInt(weightKg[1]);
+                if (val > 30 && val < 250) parsed.weight_kg = val;
+            }
+            
+            // === SMOKING ===
+            if (/\b(?:smoker|smoking|i smoke|smokes)\b/.test(lower)) {
+                parsed.smoking = 1;
+            } else if (/\b(?:non[- ]?smoker|non[- ]?smoking|do not smoke|don't smoke|no smoking|never smoked)\b/.test(lower)) {
+                parsed.smoking = 0;
+            }
+            
+            // === ALCOHOL ===
+            if (/\b(?:drinker|drinking|i drink|alcohol|drinks)\b/.test(lower) && !/\bno\s/.test(lower)) {
+                parsed.alcohol = 1;
+            } else if (/\b(?:non[- ]?drinker|no alcohol|do not drink|don't drink|never drink)\b/.test(lower)) {
+                parsed.alcohol = 0;
+            }
+            
+            // === PHYSICAL ACTIVITY ===
+            if (/\b(?:exercise|active|workout|work out|gym|fit|i exercise|i work out)\b/.test(lower)) {
+                parsed.physical_activity = 1;
+            } else if (/\b(?:inactive|no exercise|sedentary|no physical|lazy|no activity|do not exercise|don't exercise)\b/.test(lower)) {
+                parsed.physical_activity = 0;
+            }
+            
+            // === CHOLESTEROL ===
+            const cholMatch = lower.match(/cholesterol\s*(?:is\s*)?(\d{2,3})/);
+            if (cholMatch) {
+                const chol = parseInt(cholMatch[1]);
+                if (chol < 200) parsed.cholesterol = 1;
+                else if (chol < 240) parsed.cholesterol = 2;
+                else parsed.cholesterol = 3;
+            } else if (lower.includes('high cholesterol')) {
+                parsed.cholesterol = 3;
+            } else if (lower.includes('normal cholesterol')) {
+                parsed.cholesterol = 1;
+            }
+            
+            // === GLUCOSE ===
+            const glucMatch = lower.match(/glucose\s*(?:is\s*)?(\d{2,3})/);
+            if (glucMatch) {
+                const gluc = parseInt(glucMatch[1]);
+                if (gluc < 100) parsed.glucose = 1;
+                else if (gluc < 126) parsed.glucose = 2;
+                else parsed.glucose = 3;
+            } else if (lower.includes('diabetic') || lower.includes('diabetes')) {
+                parsed.glucose = 3;
+            }
+            
+            displayParsedData(parsed);
+            
+            fetch('/voice-input', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed)
+            })
+            .then(r => r.json())
+            .then(result => {
+                document.getElementById('status').textContent = '✅ Parsed and sent to backend!';
+            })
+            .catch(err => {
+                document.getElementById('status').textContent = '⚠️ Parsed locally. Backend not reachable.';
+            });
+        }
+        
+        function displayParsedData(parsed) {
+            const itemsDiv = document.getElementById('parsedItems');
+            itemsDiv.innerHTML = '';
+            
+            const labels = {
+                'age': 'Age',
+                'gender': 'Gender',
+                'height_cm': 'Height (cm)',
+                'weight_kg': 'Weight (kg)',
+                'systolic_bp': 'Systolic BP',
+                'diastolic_bp': 'Diastolic BP',
+                'smoking': 'Smoking',
+                'alcohol': 'Alcohol',
+                'physical_activity': 'Physical Activity',
+                'cholesterol': 'Cholesterol',
+                'glucose': 'Glucose'
+            };
+            
+            if (Object.keys(parsed).length === 0) {
+                itemsDiv.innerHTML = '<p style="color:#94A3B8;">No health data detected. Try again with clearer speech.</p>';
+            }
+            
+            for (const [key, value] of Object.entries(parsed)) {
+                const item = document.createElement('div');
+                item.className = 'parsed-item';
+                
+                let displayValue = value;
+                if (key === 'gender') displayValue = value === 1 ? 'Female' : 'Male';
+                if (key === 'smoking') displayValue = value === 1 ? 'Yes' : 'No';
+                if (key === 'alcohol') displayValue = value === 1 ? 'Yes' : 'No';
+                if (key === 'physical_activity') displayValue = value === 1 ? 'Yes' : 'No';
+                if (key === 'cholesterol') displayValue = value === 1 ? 'Normal' : (value === 2 ? 'Above Normal' : 'Well Above');
+                if (key === 'glucose') displayValue = value === 1 ? 'Normal' : (value === 2 ? 'Above Normal' : 'Well Above');
+                
+                item.innerHTML = `
+                    <span class="parsed-label">${labels[key] || key}</span>
+                    <span class="parsed-value">${displayValue}</span>
+                `;
+                itemsDiv.appendChild(item);
+            }
+            
+            document.getElementById('parsedData').style.display = 'block';
+            window.parsedData = parsed;
+        }
+        
+        function copyToClipboard() {
+            if (window.parsedData && Object.keys(window.parsedData).length > 0) {
+                const text = JSON.stringify(window.parsedData, null, 2);
+                navigator.clipboard.writeText(text).then(() => {
+                    document.getElementById('status').textContent = '✅ Copied to clipboard!';
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+Model,Dataset,Accuracy,AUC,Normal Recall,Abnormal Recall
+Heart Sound CNN,CinC 2016,75.31%,0.800,~75%,~75%
+ECG CNN,PTB-XL,81.00%,0.936,66.36%,97.85%
+Ensemble (ECG+HS),Combined,86.00%,0.942,74.77%,98.92%

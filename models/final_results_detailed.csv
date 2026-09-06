@@ -1,0 +1,5 @@
+Model,Dataset,Samples,Accuracy,AUC,Normal Recall,Abnormal Recall
+ECG CNN,PTB-XL,2000,81.00%,0.9360,66.36%,97.85%
+Heart Sound CNN,CinC 2016,3126,75.31%,0.8000,75.00%,75.00%
+Tabular (Gradient Boosting),Kaggle CVD,69971,72.67%,0.7940,75.80%,69.54%
+ENSEMBLE (All 3),Combined,-,76.79%,0.8526,-,-

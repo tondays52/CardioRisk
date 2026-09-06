@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioRisk AI - Health Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        body {
+            background: #0F172A;
+            color: #E2E8F0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .chat-container {
+            max-width: 550px;
+            width: 100%;
+            background: #1E293B;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #E11D48, #0EA5E9);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .chat-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .chat-header p {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+            color: white;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: fadeIn 0.3s;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .bot-message {
+            background: #334155;
+            color: #E2E8F0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .user-message {
+            background: #E11D48;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            padding: 0.5rem;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94A3B8;
+            animation: bounce 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-8px); }
+        }
+        
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            gap: 0.5rem;
+            border-top: 1px solid #334155;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: #0F172A;
+            border: 1px solid #334155;
+            border-radius: 25px;
+            color: #E2E8F0;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        
+        .chat-input:focus {
+            border-color: #E11D48;
+        }
+        
+        .send-btn {
+            padding: 0.75rem 1.5rem;
+            background: #E11D48;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .send-btn:disabled {
+            background: #64748B;
+            cursor: not-allowed;
+        }
+        
+        .map-link {
+            color: #0EA5E9;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .emergency-warning {
+            background: #EF4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 0.5rem;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>🩺 CardioRisk AI Health Assistant</h2>
+            <p>Powered by Google Gemini</p>
+        </div>
+        
+        <div class="chat-messages" id="messages"></div>
+        
+        <div class="chat-input-area">
+            <input type="text" class="chat-input" id="userInput" placeholder="Tell me about your health..." onkeypress="handleKeyPress(event)">
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/chat';
+        
+        let conversationHistory = [
+            { role: 'model', parts: [{ text: 'Hello! I am your **CardioRisk AI Health Assistant**. I will ask you a few questions about your health to assess your cardiovascular risk.\n\nLet us start: **How old are you, and what is your gender (Male/Female)?**' }] }
+        ];
+        
+        function formatMarkdown(text) {
+            let html = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const msg = document.createElement('div');
+            msg.className = 'message ' + type + '-message';
+            msg.innerHTML = formatMarkdown(text);
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function addMapLink(url) {
+            const messagesDiv = document.getElementById('messages');
+            const linkMsg = document.createElement('div');
+            linkMsg.className = 'message bot-message';
+            linkMsg.innerHTML = `<a href="${url}" target="_blank" class="map-link">📍 Open Hospital Map</a>`;
+            messagesDiv.appendChild(linkMsg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showTyping() {
+            const messagesDiv = document.getElementById('messages');
+            const typing = document.createElement('div');
+            typing.className = 'message bot-message';
+            typing.id = 'typingIndicator';
+            typing.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+            messagesDiv.appendChild(typing);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function hideTyping() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const userText = input.value.trim();
+            
+            if (!userText) return;
+            
+            addMessage(userText, 'user');
+            conversationHistory.push({ role: 'user', parts: [{ text: userText }] });
+            
+            input.value = '';
+            document.getElementById('sendBtn').disabled = true;
+            
+            showTyping();
+            
+            // Check for hospital/emergency request
+            if (/hospital|emergency|nearest|location|clinic|ambulance|chest pain|heart attack|where.*hospital/i.test(userText)) {
+                hideTyping();
+                handleHospitalRequest(userText);
+                document.getElementById('sendBtn').disabled = false;
+                return;
+            }
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: conversationHistory,
+                        message: userText
+                    })
+                });
+                
+                const data = await response.json();
+                hideTyping();
+                
+                if (data.reply) {
+                    addMessage(data.reply, 'bot');
+                    conversationHistory.push({ role: 'model', parts: [{ text: data.reply }] });
+                } else {
+                    addMessage("Thank you for sharing. Could you tell me more about your blood pressure or cholesterol levels? 😊", 'bot');
+                }
+            } catch (err) {
+                // Fallback to localhost:8000/api/chat if relative path fails
+                try {
+                    const fallbackResp = await fetch('http://localhost:8000/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: conversationHistory,
+                            message: userText
+                        })
+                    });
+                    const fbData = await fallbackResp.json();
+                    hideTyping();
+                    if (fbData.reply) {
+                        addMessage(fbData.reply, 'bot');
+                        conversationHistory.push({ role: 'model', parts: [{ text: fbData.reply }] });
+                    }
+                } catch (e2) {
+                    hideTyping();
+                    addMessage("I am here to help. Please tell me your age, blood pressure, or ask any heart health question! 🫀", 'bot');
+                }
+            }
+            
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+        
+        function handleHospitalRequest(userText) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        addMessage("I found your location. Looking for nearby hospitals... 🏥", 'bot');
+                        
+                        const mapsUrl = `https://www.google.com/maps/search/hospitals+near+me/@${lat},${lng},15z`;
+                        
+                        setTimeout(() => {
+                            addMessage("Here's a map of nearby hospitals:", 'bot');
+                            addMapLink(mapsUrl);
+                            
+                            if (/chest pain|heart attack|emergency|severe|ambulance/i.test(userText)) {
+                                const messagesDiv = document.getElementById('messages');
+                                const warning = document.createElement('div');
+                                warning.className = 'emergency-warning';
+                                warning.textContent = '⚠️ If this is an emergency, call 999 (Bangladesh) or your local emergency number immediately!';
+                                messagesDiv.appendChild(warning);
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            }
+                        }, 1000);
+                    },
+                    function(error) {
+                        addMessage("I couldn't access your location. Please open Google Maps and search for 'hospitals near me'. 🏥", 'bot');
+                        addMapLink('https://www.google.com/maps/search/hospitals+near+me');
+                    }
+                );
+            } else {
+                addMessage("Location services not available. Please open Google Maps and search for 'hospitals near me'. 🏥", 'bot');
+                addMapLink('https://www.google.com/maps/search/hospitals+near+me');
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        addMessage('Hello! I am your CardioRisk AI Health Assistant. I will ask you a few questions about your health to assess your cardiovascular risk.\n\nLet us start: How old are you?', 'bot');
+    </script>
+</body>
+</html>

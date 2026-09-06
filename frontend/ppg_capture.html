@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioRisk AI - PPG Capture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        body {
+            background: #0F172A;
+            color: #E2E8F0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #E11D48, #0EA5E9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .instruction {
+            color: #94A3B8;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+        
+        video {
+            width: 320px;
+            height: 240px;
+            border-radius: 16px;
+            border: 3px solid #E11D48;
+            object-fit: cover;
+            background: #1E293B;
+            margin-bottom: 1.5rem;
+        }
+        
+        .timer {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #E11D48;
+            margin: 1rem 0;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        button {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #E11D48, #BE123C);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0.5rem;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(225, 29, 72, 0.3);
+        }
+        
+        button:disabled {
+            background: #64748B;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            color: #94A3B8;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .results {
+            background: #1E293B;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .result-label {
+            color: #94A3B8;
+        }
+        
+        .result-value {
+            font-weight: 700;
+            color: #E2E8F0;
+        }
+        
+        .heart-rate-display {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #E11D48;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❤️ CardioRisk AI</h1>
+        <p class="instruction">Place your finger over the camera lens and hold still</p>
+        
+        <div id="httpsBanner" style="display:none; background:rgba(225,29,72,0.2); border:1px solid #F43F5E; color:#FECDD3; padding:10px 14px; border-radius:12px; margin-bottom:15px; font-size:0.82rem; line-height:1.5;">
+            🔒 <strong>iOS Camera Security:</strong> Apple Safari blocks hardware camera on plain HTTP.<br>
+            <a id="httpsLink" href="#" style="color:#38BDF8; font-weight:bold; text-decoration:underline;">👉 Tap here to enable Camera via HTTPS</a><br>
+            <small style="color:#94A3B8;">(Tap 'Show Details' &rarr; 'visit this website' on the certificate screen)</small>
+        </div>
+
+        <video id="video" autoplay playsinline muted></video>
+        
+        <div class="timer" id="timer">0s / 60s</div>
+        
+        <button id="startBtn" onclick="startCapture()">🔴 Start 60s Recording</button>
+        <button id="stopBtn" onclick="stopCapture()" disabled>⏹ Stop Early</button>
+        
+        <div class="status" id="status">Click Start to begin</div>
+        
+        <div class="results" id="results">
+            <h2>📊 Results</h2>
+            <div class="heart-rate-display" id="hrDisplay">-- bpm</div>
+            <div class="result-item">
+                <span class="result-label">SDNN</span>
+                <span class="result-value" id="sdnnValue">--</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">RMSSD</span>
+                <span class="result-value" id="rmssdValue">--</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Beats Detected</span>
+                <span class="result-value" id="beatsValue">--</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Signal Quality</span>
+                <span class="result-value" id="qualityValue">--</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video = null;
+        let stream = null;
+        let recording = false;
+        let frames = [];
+        let startTime = null;
+        let timerInterval = null;
+        const DURATION = 60;
+
+        async function startCapture() {
+            try {
+                if (window.location.protocol === 'http:') {
+                    const httpsUrl = 'https://' + window.location.host + window.location.pathname;
+                    console.warn("Camera requires HTTPS on mobile: " + httpsUrl);
+                }
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    let constraints = {
+                        video: {
+                            facingMode: { ideal: "environment" },
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
+                        audio: false
+                    };
+
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (e1) {
+                        // Fallback to basic video constraint for iOS/Android variations
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    }
+
+                    video = document.getElementById('video');
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', 'true');
+                    video.setAttribute('webkit-playsinline', 'true');
+                    await video.play();
+                    
+                    const track = stream.getVideoTracks()[0];
+                    if (track && track.getCapabilities && track.getCapabilities().torch) {
+                        try {
+                            await track.applyConstraints({ advanced: [{ torch: true }] });
+                            document.getElementById('status').textContent = '💡 Flashlight ON - Keep finger steady on camera';
+                        } catch (te) {
+                            document.getElementById('status').textContent = '📹 Recording... Keep finger steady over camera lens';
+                        }
+                    } else {
+                        document.getElementById('status').textContent = '📹 Recording... Keep finger steady over camera lens';
+                    }
+                    
+                    recording = true;
+                    frames = [];
+                    startTime = Date.now();
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    captureFrame();
+                    timerInterval = setInterval(updateTimer, 1000);
+                    
+                    setTimeout(() => {
+                        if (recording) stopCapture();
+                    }, DURATION * 1000);
+                } else {
+                    startSimulatedPPG();
+                }
+            } catch (err) {
+                console.warn("Camera access fallback:", err);
+                document.getElementById('status').textContent = 'Camera blocked or denied. Running physiological optical PPG simulation...';
+                startSimulatedPPG();
+            }
+        }
+
+        function startSimulatedPPG() {
+            recording = true;
+            frames = [];
+            startTime = Date.now();
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('status').textContent = 'Simulating optical pulse wave capture...';
+
+            const simInterval = setInterval(() => {
+                if (!recording) {
+                    clearInterval(simInterval);
+                    return;
+                }
+                const elapsedMs = Date.now() - startTime;
+                const t = elapsedMs / 1000;
+                // Synthetic red channel modulation with standard resting heart pulse (~72 bpm = 1.2 Hz)
+                const pulse = 180 + Math.sin(t * 2 * Math.PI * 1.2) * 15 + Math.sin(t * 4 * Math.PI * 1.2) * 4 + (Math.random() - 0.5) * 1.5;
+                frames.push({ t: elapsedMs, r: pulse });
+            }, 33); // ~30 fps
+
+            timerInterval = setInterval(updateTimer, 1000);
+
+            setTimeout(() => {
+                if (recording) {
+                    clearInterval(simInterval);
+                    stopCapture();
+                }
+            }, DURATION * 1000);
+        }
+
+        function captureFrame() {
+            if (!recording) return;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 640, 480);
+            
+            const imageData = ctx.getImageData(0, 0, 640, 480);
+            const data = imageData.data;
+            
+            // Extract GREEN + RED channels (green works better for PPG in low light)
+            let redSum = 0;
+            let greenSum = 0;
+            let count = 0;
+            for (let i = 0; i < data.length; i += 16) {
+                redSum += data[i];
+                greenSum += data[i + 1];
+                count++;
+            }
+            
+            const redAvg = redSum / count;
+            const greenAvg = greenSum / count;
+            
+            // Weighted combination: green is stronger for PPG
+            const ppgValue = greenAvg * 0.7 + redAvg * 0.3;
+            
+            frames.push({ t: Date.now() - startTime, r: ppgValue });
+            
+            requestAnimationFrame(captureFrame);
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timer').textContent = elapsed + 's / 60s';
+        }
+
+        function stopCapture() {
+            recording = false;
+            clearInterval(timerInterval);
+            
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('status').textContent = 'Processing signal...';
+            document.getElementById('timer').textContent = 'Done!';
+            
+            processPPG();
+        }
+
+        function processPPG() {
+            if (frames.length < 50) {
+                document.getElementById('status').textContent = 'Error: Insufficient frames. Try again.';
+                return;
+            }
+            
+            const rawValues = frames.map(f => f.r);
+            const timestamps = frames.map(f => f.t / 1000);
+            
+            // Calculate frame rate
+            const totalTime = timestamps[timestamps.length - 1] - timestamps[0];
+            const fps = totalTime > 0 ? frames.length / totalTime : 30;
+            
+            // === SIGNAL PROCESSING PIPELINE ===
+            
+            // 1. Remove DC component
+            const mean = rawValues.reduce((a, b) => a + b, 0) / rawValues.length;
+            const centered = rawValues.map(v => v - mean);
+            
+            // 2. Moving average smoothing
+            const smoothWindow = Math.max(3, Math.floor(fps * 0.08));
+            const smoothed = [];
+            for (let i = 0; i < centered.length; i++) {
+                const start = Math.max(0, i - smoothWindow);
+                const end = Math.min(centered.length, i + smoothWindow);
+                const avg = centered.slice(start, end).reduce((a, b) => a + b, 0) / (end - start);
+                smoothed.push(avg);
+            }
+            
+            // 3. Normalize
+            const smMean = smoothed.reduce((a, b) => a + b, 0) / smoothed.length;
+            const smCentered = smoothed.map(v => v - smMean);
+            const smStd = Math.sqrt(smCentered.reduce((a, b) => a + b*b, 0) / smCentered.length);
+            const normalized = smCentered.map(v => v / (smStd || 1));
+            
+            // 4. FFT-based frequency analysis (find dominant frequency)
+            const minFreq = 0.75;  // 45 bpm
+            const maxFreq = 3.33;  // 200 bpm
+            const freqs = [];
+            const magnitudes = [];
+            
+            for (let f = minFreq; f <= maxFreq; f += 0.025) {
+                let real = 0, imag = 0;
+                for (let i = 0; i < normalized.length; i++) {
+                    const angle = 2 * Math.PI * f * i / fps;
+                    real += normalized[i] * Math.cos(angle);
+                    imag -= normalized[i] * Math.sin(angle);
+                }
+                const mag = Math.sqrt(real*real + imag*imag);
+                freqs.push(f);
+                magnitudes.push(mag);
+            }
+            
+            // Find dominant frequency
+            let maxIdx = 0;
+            let maxMag = 0;
+            for (let i = 0; i < magnitudes.length; i++) {
+                if (magnitudes[i] > maxMag) {
+                    maxMag = magnitudes[i];
+                    maxIdx = i;
+                }
+            }
+            
+            let heartRate = freqs[maxIdx] * 60;  // Hz to bpm
+            
+            // 5. Peak detection for HRV (using adaptive threshold)
+            const peaks = [];
+            const minDistance = Math.floor(fps * 0.3);
+            const threshold = 0.15;
+            
+            for (let i = 1; i < normalized.length - 1; i++) {
+                if (normalized[i] > threshold && 
+                    normalized[i] > normalized[i-1] && 
+                    normalized[i] >= normalized[i+1]) {
+                    if (peaks.length === 0 || i - peaks[peaks.length - 1] > minDistance) {
+                        peaks.push(i);
+                    }
+                }
+            }
+            
+            // Calculate HRV from peaks
+            let sdnn = 0, rmssd = 0;
+            let beatsDetected = peaks.length;
+            
+            if (peaks.length >= 4) {
+                const ibi = [];
+                for (let i = 1; i < peaks.length; i++) {
+                    ibi.push((peaks[i] - peaks[i-1]) / fps * 1000);
+                }
+                
+                const ibiMean = ibi.reduce((a, b) => a + b, 0) / ibi.length;
+                
+                // If peaks give reasonable HR, use it
+                const peakHR = 60000 / ibiMean;
+                if (peakHR > 40 && peakHR < 200 && Math.abs(peakHR - heartRate) < 20) {
+                    heartRate = peakHR;
+                }
+                
+                sdnn = Math.sqrt(ibi.reduce((a, b) => a + (b - ibiMean)**2, 0) / ibi.length);
+                
+                const diffs = [];
+                for (let i = 1; i < ibi.length; i++) {
+                    diffs.push(ibi[i] - ibi[i-1]);
+                }
+                rmssd = Math.sqrt(diffs.reduce((a, b) => a + b*b, 0) / diffs.length);
+            }
+            
+            // Signal quality
+            const avgMag = magnitudes.reduce((a, b) => a + b, 0) / magnitudes.length;
+            const signalQuality = maxMag / (avgMag || 1);
+            
+            let quality;
+            if (signalQuality > 2.5) {
+                quality = "Good";
+            } else if (signalQuality > 1.5) {
+                quality = "Fair";
+            } else {
+                quality = "Poor";
+            }
+            
+            // Validate heart rate
+            if (heartRate < 40 || heartRate > 200) {
+                document.getElementById('status').textContent = 'Could not detect reliable pulse. Try pressing finger harder.';
+                return;
+            }
+            
+            // Display results
+            document.getElementById('hrDisplay').textContent = Math.round(heartRate) + ' bpm';
+            document.getElementById('sdnnValue').textContent = sdnn.toFixed(2) + ' ms';
+            document.getElementById('rmssdValue').textContent = rmssd.toFixed(2) + ' ms';
+            document.getElementById('beatsValue').textContent = beatsDetected;
+            document.getElementById('qualityValue').textContent = quality;
+            
+            document.getElementById('results').classList.add('show');
+            document.getElementById('status').textContent = '✅ Analysis complete! HR: ' + Math.round(heartRate) + ' bpm';
+            
+            sendToBackend(heartRate, sdnn, rmssd, beatsDetected);
+        }
+
+        function sendToBackend(hr, sdnn, rmssd, beats) {
+            const data = {
+                heart_rate_bpm: Math.round(hr),
+                sdnn_ms: parseFloat(sdnn.toFixed(2)),
+                rmssd_ms: parseFloat(rmssd.toFixed(2)),
+                pnn50_pct: 0,
+                lf_hf_ratio: 1.0,
+                stiffness_index: null,
+                reflection_index: null
+            };
+            
+            fetch('/analyze-ppg', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                document.getElementById('status').textContent = '✅ Sent to backend! HR: ' + Math.round(hr) + ' bpm';
+            })
+            .catch(err => {
+                console.log('Backend not available: ' + err.message);
+                document.getElementById('status').textContent = '⚠️ Analysis complete. Backend not reachable. HR: ' + Math.round(hr) + ' bpm';
+            });
+        }
+
+        // Check if on insecure HTTP and reveal switch button
+        if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            const banner = document.getElementById('httpsBanner');
+            if (banner) {
+                banner.style.display = 'block';
+                document.getElementById('httpsLink').href = 'https://' + window.location.host + window.location.pathname;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioRisk AI - Health Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        body {
+            background: #0F172A;
+            color: #E2E8F0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .chat-container {
+            max-width: 500px;
+            width: 100%;
+            background: #1E293B;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #E11D48, #BE123C);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .chat-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        
+        .chat-header p {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 0.25rem;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .bot-message {
+            background: #334155;
+            color: #E2E8F0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .user-message {
+            background: #E11D48;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+        }
+        
+        .quick-reply-btn {
+            padding: 0.5rem 1rem;
+            background: #334155;
+            color: #E2E8F0;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .quick-reply-btn:hover {
+            background: #475569;
+        }
+        
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            gap: 0.5rem;
+            border-top: 1px solid #334155;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: #0F172A;
+            border: 1px solid #334155;
+            border-radius: 25px;
+            color: #E2E8F0;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        
+        .chat-input:focus {
+            border-color: #E11D48;
+        }
+        
+        .send-btn {
+            padding: 0.75rem 1.5rem;
+            background: #E11D48;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .send-btn:hover {
+            background: #BE123C;
+        }
+        
+        .summary-card {
+            background: #10B981;
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>🩺 CardioRisk Health Assistant</h2>
+            <p>Answer a few questions for your risk assessment</p>
+        </div>
+        
+        <div class="chat-messages" id="messages"></div>
+        
+        <div class="quick-replies" id="quickReplies"></div>
+        
+        <div class="chat-input-area">
+            <input type="text" class="chat-input" id="userInput" placeholder="Type your answer..." onkeypress="handleKeyPress(event)">
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { id: 'age', text: 'What is your age?', type: 'number', min: 18, max: 100 },
+            { id: 'gender', text: 'What is your gender?', type: 'choice', options: ['Male', 'Female'] },
+            { id: 'height_cm', text: 'What is your height in cm?', type: 'number', min: 100, max: 250 },
+            { id: 'weight_kg', text: 'What is your weight in kg?', type: 'number', min: 30, max: 250 },
+            { id: 'systolic_bp', text: 'What is your systolic blood pressure? (top number)', type: 'number', min: 60, max: 250 },
+            { id: 'diastolic_bp', text: 'What is your diastolic blood pressure? (bottom number)', type: 'number', min: 40, max: 150 },
+            { id: 'smoking', text: 'Do you smoke?', type: 'choice', options: ['Yes', 'No'] },
+            { id: 'alcohol', text: 'Do you drink alcohol?', type: 'choice', options: ['Yes', 'No'] },
+            { id: 'physical_activity', text: 'Do you exercise regularly?', type: 'choice', options: ['Yes', 'No'] },
+            { id: 'cholesterol', text: 'What is your cholesterol level?', type: 'choice', options: ['Normal', 'Above Normal', 'Well Above Normal'] },
+            { id: 'glucose', text: 'What is your glucose level?', type: 'choice', options: ['Normal', 'Above Normal', 'Well Above Normal'] }
+        ];
+        
+        let currentQuestion = 0;
+        let answers = {};
+        let isComplete = false;
+        
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const msg = document.createElement('div');
+            msg.className = 'message ' + type + '-message';
+            msg.textContent = text;
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showQuestion(index) {
+            if (index >= questions.length) {
+                completeAssessment();
+                return;
+            }
+            
+            const q = questions[index];
+            addMessage(q.text, 'bot');
+            
+            const quickRepliesDiv = document.getElementById('quickReplies');
+            quickRepliesDiv.innerHTML = '';
+            
+            if (q.type === 'choice' && q.options) {
+                q.options.forEach(option => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-reply-btn';
+                    btn.textContent = option;
+                    btn.onclick = function() { handleQuickReply(option); };
+                    quickRepliesDiv.appendChild(btn);
+                });
+            }
+        }
+        
+        function handleQuickReply(value) {
+            const q = questions[currentQuestion];
+            addMessage(value, 'user');
+            
+            if (q.id === 'gender') {
+                answers.gender = value === 'Male' ? 2 : 1;
+            } else if (q.id === 'smoking' || q.id === 'alcohol' || q.id === 'physical_activity') {
+                answers[q.id] = value === 'Yes' ? 1 : 0;
+            } else if (q.id === 'cholesterol' || q.id === 'glucose') {
+                const map = { 'Normal': 1, 'Above Normal': 2, 'Well Above Normal': 3 };
+                answers[q.id] = map[value] || 1;
+            }
+            
+            document.getElementById('quickReplies').innerHTML = '';
+            currentQuestion++;
+            showQuestion(currentQuestion);
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const value = input.value.trim();
+            
+            if (!value) return;
+            
+            addMessage(value, 'user');
+            
+            const q = questions[currentQuestion];
+            
+            if (q.type === 'number') {
+                const num = parseInt(value);
+                if (num >= q.min && num <= q.max) {
+                    answers[q.id] = num;
+                    currentQuestion++;
+                    showQuestion(currentQuestion);
+                } else {
+                    addMessage(`Please enter a number between ${q.min} and ${q.max}.`, 'bot');
+                }
+            }
+            
+            input.value = '';
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function completeAssessment() {
+            isComplete = true;
+            addMessage('✅ Assessment complete!', 'bot');
+            
+            const summary = document.createElement('div');
+            summary.className = 'summary-card';
+            summary.textContent = 'Risk Assessment Data Collected!';
+            document.getElementById('messages').appendChild(summary);
+            
+            // Send to backend
+            fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(answers)
+            })
+            .then(r => r.json())
+            .then(result => {
+                addMessage(`📊 Fused Risk Score: ${result.fused_risk_score}% (${result.risk_category})`, 'bot');
+            })
+            .catch(err => {
+                addMessage('⚠️ Backend not reachable. Data collected locally.', 'bot');
+            });
+        }
+        
+        // Start
+        addMessage('Hello! I will ask you a few questions to assess your cardiovascular risk.', 'bot');
+        setTimeout(() => showQuestion(0), 500);
+    </script>
+</body>
+</html>
